@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#00ffc8" />
+  <meta name="description" content="Smart Aid Control Panel for visually impaired assistance">
+  <!-- Security headers -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.socket.io https://maps.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data:; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; frame-src 'self' https://smartaid.ngrok.io;">
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta http-equiv="X-Frame-Options" content="DENY">
+  <meta http-equiv="Referrer-Policy" content="no-referrer-when-downgrade">
+  <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=()">
+  
+  <title>Smart Aid - Control Panel</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet" />
+  <!-- Updated manifest link -->
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  
+  <style>
+    /* Star particle effect */
+    #star-background {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    .star {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: 50%;
+      opacity: 0;
+      animation: twinkle 2s infinite;
+    }
+
+    @keyframes twinkle {
+      0%, 100% { opacity: 0; }
+      50% { opacity: 1; }
+    }
+    
+    /* PWA Styles */
+    :root {
+      --bg-dark: #0a0a0a;
+      --primary: #00ffc8;
+      --accent: #00ff99;
+      --card-bg: #1a1a1a;
+      --text-color: #e0e0e0;
+      --shadow: rgba(0, 255, 200, 0.3);
+    }
+
+    body {
+      font-family: 'Orbitron', sans-serif;
+      margin: 0;
+      background-color: var(--bg-dark);
+      color: var(--text-color);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    nav {
+      display: flex;
+      justify-content: space-between;
+      overflow-x: auto;
+      padding: 10px;
+      background-color: #121212;
+      border-bottom: 2px solid var(--primary);
+      box-shadow: 0 2px 10px var(--shadow);
+      position: relative;
+      z-index: 10;
+    }
+
+    nav button {
+      flex: 1;
+      white-space: nowrap;
+      padding: 12px;
+      font-size: 15px;
+      font-weight: bold;
+      background: transparent;
+      border: none;
+      color: var(--primary);
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    nav button:hover {
+      background-color: var(--accent);
+      color: #000;
+    }
+
+    .section {
+      display: none;
+      padding: 20px;
+      animation: fadeIn 0.3s ease-in-out;
+      flex: 1;
+      overflow-y: auto;
+      position: relative;
+      z-index: 5;
+    }
+
+    .active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    button,
+    select,
+    input[type="text"],
+    input[type="range"] {
+      padding: 12px;
+      font-size: 15px;
+      border-radius: 8px;
+      border: none;
+      margin: 8px 0;
+      outline: none;
+    }
+
+    button {
+      background: var(--primary);
+      color: #000;
+      font-weight: bold;
+      box-shadow: 0 0 12px var(--shadow);
+      transition: all 0.3s ease;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px var(--shadow);
+    }
+
+    #map {
+      height: 50vh;
+      width: 100%;
+      border-radius: 10px;
+      box-shadow: 0 0 10px var(--shadow);
+    }
+
+    .log-box,
+    .status-box {
+      background: var(--card-bg);
+      padding: 14px;
+      border-radius: 10px;
+      box-shadow: 0 0 6px var(--shadow);
+      margin-top: 12px;
+      position: relative;
+      z-index: 5;
+    }
+
+    #sensor-video img {
+      width: 100%;
+      border: none;
+      border-radius: 10px;
+    }
+
+    /* Floating microphone button */
+    .floating-mic {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--primary);
+      color: #000;
+      border: none;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      font-size: 26px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 0 15px var(--shadow);
+      z-index: 1000;
+      transition: background 0.2s ease;
+    }
+
+    .floating-mic:hover {
+      background: var(--accent);
+      color: #000;
+      transform: scale(1.1);
+    }
+    
+    /* PWA Install Button */
+    #installButton {
+      position: fixed;
+      bottom: 90px;
+      right: 20px;
+      background: var(--primary);
+      color: #000;
+      border: none;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      font-size: 26px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 0 15px var(--shadow);
+      z-index: 1000;
+      display: none;
+      transition: all 0.3s ease;
+    }
+    
+    #installButton:hover {
+      transform: scale(1.1);
+      background: var(--accent);
+    }
+    
+    /* Offline Notification */
+    #offlineNotification {
+      position: fixed;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #ff3333;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 5px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      z-index: 2000;
+      display: none;
+      animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { transform: translateX(-50%) scale(1); }
+      50% { transform: translateX(-50%) scale(1.05); }
+      100% { transform: translateX(-50%) scale(1); }
+    }
+    
+    /* App Header */
+    .app-header {
+      display: flex;
+      align-items: center;
+      padding: 10px 20px;
+      background: #121212;
+      border-bottom: 1px solid var(--primary);
+      position: relative;
+      z-index: 10;
+      justify-content: space-between;
+    }
+    
+    .app-header-left {
+      display: flex;
+      align-items: center;
+    }
+    
+    .app-icon {
+      width: 40px;
+      height: 40px;
+      margin-right: 10px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      color: #000;
+    }
+    
+    .app-title {
+      flex: 1;
+      font-size: 1.2rem;
+    }
+    
+    .app-header-right {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .header-install-btn {
+      background: var(--primary);
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 0 8px var(--shadow);
+      transition: all 0.3s ease;
+    }
+    
+    .header-install-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px var(--shadow);
+      background: var(--accent);
+    }
+    
+    .privacy-link {
+      color: var(--primary);
+      text-decoration: none;
+      padding: 8px 12px;
+      border-radius: 8px;
+      transition: background 0.2s;
+    }
+    
+    .privacy-link:hover {
+      background: rgba(0, 255, 200, 0.1);
+    }
+    
+    /* Security badge */
+    .security-badge {
+      background: var(--primary);
+      color: #000;
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 0.8rem;
+      font-weight: bold;
+      margin-left: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Privacy Modal */
+    #privacyModal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      z-index: 2000;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    .modal-content {
+      background: var(--card-bg);
+      width: 90%;
+      max-width: 600px;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 20px var(--shadow);
+      position: relative;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    
+    .modal-content h2 {
+      color: var(--primary);
+      margin-top: 0;
+    }
+    
+    .modal-content p {
+      line-height: 1.6;
+    }
+    
+    .modal-content button {
+      margin-top: 20px;
+    }
+    
+    .modal-close {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: none;
+      border: none;
+      color: var(--text-color);
+      font-size: 24px;
+      cursor: pointer;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+    }
+    
+    .modal-close:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      nav {
+        flex-wrap: wrap;
+      }
+      nav button {
+        flex: 1 0 33%;
+        font-size: 13px;
+        padding: 8px;
+      }
+      
+      .app-header {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 10px;
+      }
+      
+      .app-header-right {
+        width: 100%;
+        justify-content: space-between;
+        margin-top: 8px;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      nav button {
+        flex: 1 0 50%;
+      }
+      .section {
+        padding: 10px;
+      }
+      
+      .header-install-btn span {
+        display: none;
+      }
+      
+      .header-install-btn {
+        padding: 8px;
+      }
+      
+      .floating-mic, #installButton {
+        width: 50px;
+        height: 50px;
+        font-size: 20px;
+      }
+      
+      #installButton {
+        bottom: 80px;
+      }
+    }
+    
+    /* Toast notifications */
+    .toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 15px 25px;
+      background: var(--card-bg);
+      color: var(--text-color);
+      border-left: 4px solid var(--primary);
+      border-radius: 4px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 3000;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transform: translateX(120%);
+      transition: transform 0.3s ease-out;
+    }
+    
+    .toast.show {
+      transform: translateX(0);
+    }
+    
+    .toast.success {
+      border-color: #00ff99;
+    }
+    
+    .toast.error {
+      border-color: #ff5555;
+    }
+    
+    .toast-icon {
+      font-size: 20px;
+    }
+    
+    /* Loading spinner */
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(0, 255, 200, 0.3);
+      border-top: 4px solid var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <!-- Star background container -->
+  <div id="star-background"></div>
+  
+  <!-- Toast notification container -->
+  <div id="toastContainer"></div>
+  
+  <!-- Privacy Policy Modal -->
+  <div id="privacyModal">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closePrivacyModal()">×</button>
+      <h2>Privacy Policy</h2>
+      <p><strong>Last Updated:</strong> June 10, 2025</p>
+      
+      <p>Smart Aid is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our services.</p>
+      
+      <h3>Information We Collect</h3>
+      <p>We may collect the following types of information:</p>
+      <ul>
+        <li><strong>Personal Data:</strong> Name, email address when voluntarily provided</li>
+        <li><strong>Location Data:</strong> GPS coordinates for navigation assistance</li>
+        <li><strong>Usage Data:</strong> System logs, error reports, and performance metrics</li>
+        <li><strong>Sensory Data:</strong> Ultrasonic readings and object detection information</li>
+      </ul>
+      
+      <h3>How We Use Your Information</h3>
+      <p>We use the collected information to:</p>
+      <ul>
+        <li>Provide navigation assistance and obstacle detection</li>
+        <li>Improve system performance and reliability</li>
+        <li>Customize the user experience</li>
+        <li>Diagnose technical issues</li>
+        <li>Enhance safety features</li>
+      </ul>
+      
+      <h3>Data Security</h3>
+      <p>We implement industry-standard security measures including:</p>
+      <ul>
+        <li>End-to-end encryption for all data transmissions</li>
+        <li>Secure storage protocols</li>
+        <li>Regular security audits</li>
+        <li>Access controls and authentication systems</li>
+      </ul>
+      
+      <h3>Third-Party Services</h3>
+      <p>We use Google Maps API for navigation services. Your use of these services is subject to Google's Privacy Policy.</p>
+      
+      <h3>Changes to This Policy</h3>
+      <p>We may update our Privacy Policy periodically. We will notify you of any changes by posting the new policy on this page.</p>
+      
+      <button onclick="closePrivacyModal()">Close</button>
+    </div>
+  </div>
+  
+  <!-- App Header -->
+  <div class="app-header">
+    <div class="app-header-left">
+      <div class="app-icon">SA</div>
+      <div class="app-title">Smart Aid Control Panel <span class="security-badge">🔒 Secure</span></div>
+    </div>
+    
+    <div class="app-header-right">
+      <a href="#" class="privacy-link" onclick="openPrivacyModal()">Privacy Policy</a>
+      <button id="headerInstallButton" class="header-install-btn" onclick="installPWA()">
+        <span>Install App</span> 📲
+      </button>
+    </div>
+  </div>
+
+  <!-- Offline Notification -->
+  <div id="offlineNotification">You are currently offline. Some features may be limited.</div>
+
+  <nav>
+    <button class="nav-btn active" onclick="switchSection('dashboard', this);">📊 Dashboard</button>
+    <button class="nav-btn" onclick="switchSection('nav', this);">🗺️ Navigation</button>
+    <button class="nav-btn" onclick="switchSection('detect', this);">🎯 Detection</button>
+    <button class="nav-btn" onclick="switchSection('sensor', this);">📏 Sensors</button>
+    <button class="nav-btn" onclick="switchSection('system', this);">🧠 System</button>
+    <button class="nav-btn" onclick="switchSection('voice', this);">🔊 Voice</button>
+    <button onclick="shutdownPi(); speak('Shutting down the Raspberry Pi')">⚠️ Power Off</button>
+    <button onclick="deleteLogs()">🧹 Delete All Logs</button>
+  </nav>
+
+  <!-- Floating Buttons -->
+  <button class="floating-mic" onclick="startListening()">🎤</button>
+  <button id="installButton" onclick="installPWA()">📲</button>
+
+  <div id="dashboard" class="section active">
+    <h2>Welcome to Smart Aid Dashboard</h2>
+    <p>Use the tabs above to explore system features. This PWA application is securely hosted with encrypted connections.</p>
+
+    <div class="status-box">
+      Motion: <span id="motionStatus">Detected</span>
+    </div>
+
+    <div class="status-box" style="margin-top: 30px;">
+      <h3>📈 System Analytics</h3>
+      <div id="analytics-wrapper" style="position: relative;">
+        <div id="loading-spinner">
+          <div class="spinner"></div>
+          <span>Loading analytics...</span>
+        </div>
+        <div style="position:relative; padding-bottom:140%; height:0; overflow:hidden; border-radius:12px;">
+          <iframe 
+            src="https://smartaid.ngrok.io/analytics/" 
+            style="position:absolute; top:0; left:0; width:100%; height:100%; border:none; border-radius:12px; background-color:#1a1a1a;" 
+            allowfullscreen
+            onload="document.getElementById('loading-spinner').style.display='none'">
+          </iframe>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="nav" class="section">
+    <div id="map" style="background: #2a2a2a; display: flex; align-items: center; justify-content: center;">
+      <div style="text-align: center; color: #888;">
+        <div class="spinner"></div>
+        <p>Loading map...</p>
+      </div>
+    </div>
+    <div style="display: flex; gap: 10px; margin-top: 15px;">
+      <input type="text" id="destinationInput" placeholder="Search destination..." style="flex: 1;" />
+      <button onclick="startVoiceSearch()">🎙 Voice</button>
+    </div>
+    <div class="status-box">
+      Distance: <span id="distanceTravelled">0</span> m<br />
+      Speed: <span id="speed">0</span> km/h
+    </div>
+  </div>
+
+  <div id="detect" class="section">
+    <h3>Detection Controls</h3>
+
+    <!-- Mute Toggle -->
+    <label><input type="checkbox" id="muteToggle" onchange="toggleMute()" /> 🔇 Mute Voice Output</label>
+    <br />
+
+    <!-- Mode Selection -->
+    <label for="modeSelect">Mode:</label>
+    <select id="modeSelect" onchange="updateMode()">
+      <option value="home">🏠 Home</option>
+      <option value="public">🌆 Public</option>
+      <option value="custom">🧩 Custom</option>
+    </select>
+    <br />
+
+    <!-- 🔘 Custom Mode Label Picker -->
+    <div id="customLabelBox" style="display:none; margin-top:10px;">
+      <strong>Select labels for Custom Mode:</strong><br />
+      <div id="customLabels" style="max-height:150px; overflow-y:auto; padding:6px; border:1px solid #ccc; border-radius:6px;"></div>
+    </div>
+
+    <!-- Config Controls -->
+    <div style="display: flex; gap: 10px; margin-top: 15px;">
+      <button onclick="updateConfig(); speak('Object filter applied')">✅ Apply</button>
+      <button onclick="speakLastDetection()">🔊 Repeat Last Detection</button>
+      <button onclick="clearDetectionLog()">🗑️ Clear Log</button>
+    </div>
+
+    <!-- Detection Log -->
+    <div id="detectionLog" class="log-box">
+      <strong>Detections:</strong>
+      <ul id="detectionList"><li id="placeholder">No detections yet.</li></ul>
+    </div>
+
+    <!-- 🔍 Status Panel -->
+    <div id="statusPanel" class="status-box">
+      <p><strong>Current Mode:</strong> <span id="modeLabel">Public</span></p>
+      <p><strong>Active Labels:</strong> <span id="activeLabels">person, car, bus, bicycle, motorcycle, traffic light, stop sign, bench, truck, tree</span></p>
+
+      <label>
+        <input type="checkbox" id="toggleDetection" checked> ✅ Detection Active
+      </label><br />
+      <label>
+        <input type="checkbox" id="toggleVoice" checked> 🔊 Voice Alerts
+      </label>
+    </div>
+  </div>
+
+  <div id="sensor" class="section">
+    <h3>Ultrasonic Thresholds (cm)</h3>
+    <label>Left Front: <input type="range" id="Left Front" min="10" max="150" value="70" /></label><br />
+    <label>Left Middle: <input type="range" id="Left Middle" min="10" max="150" value="70" /></label><br />
+    <label>Left Rear: <input type="range" id="Left Rear" min="10" max="150" value="70" /></label><br />
+    <label>Right Front: <input type="range" id="Right Front" min="10" max="150" value="70" /></label><br />
+    <label>Right Middle: <input type="range" id="Right Middle" min="10" max="150" value="70" /></label><br />
+    <label>Right Rear: <input type="range" id="Right Rear" min="10" max="150" value="70" /></label><br />
+
+    <div style="display: flex; gap: 10px; margin-top: 15px;">
+      <button onclick="applyThresholds()">💾 Save Thresholds</button>
+      <button onclick="toggleFullScreen(document.getElementById('liveVideo'))">🖥 Full Screen</button>
+    </div>
+
+    <div id="sensor-video" style="margin-top:20px;">
+      <h3>Live Video Feed</h3>
+      <img id="liveVideo" src="https://via.placeholder.com/600x400/1a1a1a/00ffc8?text=Live+Video+Feed" alt="Live Stream" style="width:100%; border-radius:10px; border:none;" />
+    </div>
+
+    <div class="status-box">
+      <a id="latestVideoLink" href="#" target="_blank" download>🎥 Download Latest Video</a>
+    </div>
+  </div>
+
+  <div id="system" class="section">
+    <h3>System Tools</h3>
+    
+    <label><input type="checkbox" id="indoorToggle" onchange="toggleIndoorMode()" /> Indoor Mode</label><br>
+    <label><input type="checkbox" id="quietToggle" onchange="toggleQuietMode()" /> Quiet Mode</label><br>
+    <label><input type="checkbox" id="wakeToggle" onchange="toggleWakeWord()" /> Wake Word</label><br>
+
+    <div class="log-box">
+      <strong>Device:</strong> <span id="deviceName">Smart Aid v2.1</span><br>
+      <strong>Quiet:</strong> <span id="quietStatus">OFF</span><br>
+      <strong>Mode:</strong> <span id="currentMode">Public</span>
+    </div>
+
+    <div style="display: flex; gap: 10px; margin-top: 15px;">
+      <button onclick="checkStatus()">📊 Check Status</button>
+      <button onclick="toggleLog()">📄 Logs</button>
+    </div>
+
+    <div id="log" class="log-box" style="display:none">
+      <strong>System Logs:</strong><br>
+      <pre>[12:45:32] System started<br>[12:46:15] GPS location acquired<br>[12:47:22] Motion detected</pre>
+    </div>
+
+    <!-- ✅ Wi-Fi Status Card -->
+    <div class="status-box" style="margin-top: 20px;">
+      <h2 class="text-xl font-bold mb-2">📶 Wi-Fi Status</h2>
+      <p><strong>SSID:</strong> <span id="wifi-ssid">SmartAid_Network</span></p>
+      <p><strong>Signal:</strong> <span id="wifi-signal">Excellent</span></p>
+      <p><strong>IP Address:</strong> <span id="wifi-ip">192.168.1.42</span></p>
+      <p><strong>Connection Quality:</strong> <span id="wifi-quality">95%</span></p>
+      <button onclick="refreshWifiStatus()" class="mt-2 px-4 py-1 bg-blue-500 text-white rounded">🔄 Refresh</button>
+    </div>
+    
+    <!-- Security Status -->
+    <div class="status-box" style="margin-top: 20px;">
+      <h3>🔒 Security Status</h3>
+      <p><strong>Connection:</strong> <span id="security-connection">Secure 🔒</span></p>
+      <p><strong>Data Encryption:</strong> <span id="security-encryption">Enabled</span></p>
+      <p><strong>Service Worker:</strong> <span id="security-sw">Active</span></p>
+      <p><strong>Privacy Controls:</strong> <span id="security-privacy">Enabled</span></p>
+    </div>
+  </div>
+
+  <div id="voice" class="section">
+    <h3>Custom Voice Command</h3>
+    <label for="voiceSelector">Voice:</label>
+    <select id="voiceSelector">
+      <option value="female">Female</option>
+      <option value="male">Male</option>
+    </select>
+    <br />
+    <input type="text" id="voiceInput" placeholder="Say something..." />
+    <button onclick="sendVoice()">📢 Speak</button>
+    
+    <div class="status-box" style="margin-top: 20px;">
+      <h3>Voice Command Examples</h3>
+      <ul>
+        <li>"Navigate to library"</li>
+        <li>"Where am I?"</li>
+        <li>"Enable quiet mode"</li>
+        <li>"Check battery status"</li>
+        <li>"Delete logs"</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- External JS Files -->
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBY3Yq8fMunZyBiHqjalocVA1yKyLCi4nw&libraries=places&callback=initMap" async defer></script>
+
+  <!-- JS + Logic Order -->
+  <script>
+  // Toast notification function
+  function showToast(message, type = 'info') {
+    const toastContainer = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `
+      <div class="toast-icon">${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</div>
+      <div>${message}</div>
+    `;
+    toastContainer.appendChild(toast);
+    
+    // Show the toast
+    setTimeout(() => {
+      toast.classList.add('show');
+    }, 100);
+    
+    // Remove after delay
+    setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(() => {
+        toast.remove();
+      }, 300);
+    }, 3000);
+  }
+  
+  // Privacy Modal Functions
+  function openPrivacyModal() {
+    document.getElementById('privacyModal').style.display = 'flex';
+  }
+  
+  function closePrivacyModal() {
+    document.getElementById('privacyModal').style.display = 'none';
+  }
+  
+  // Close modal when clicking outside
+  document.getElementById('privacyModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+      closePrivacyModal();
+    }
+  });
+
+  // Star particle effect
+  const starCount = 200;
+  const starBackground = document.getElementById('star-background');
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+
+  for (let i = 0; i < starCount; i++) {
+    const star = document.createElement('div');
+    star.classList.add('star');
+
+    star.style.top = Math.random() * height + 'px';
+    star.style.left = Math.random() * width + 'px';
+
+    const size = Math.random() * 3 + 1;
+    star.style.width = size + 'px';
+    star.style.height = size + 'px';
+
+    star.style.animationDelay = Math.random() * 5 + 's';
+
+    starBackground.appendChild(star);
+  }
+
+  // PWA Installation Logic - Fixed
+  let deferredPrompt;
+  const installButton = document.getElementById('installButton');
+  const headerInstallButton = document.getElementById('headerInstallButton');
+  
+  window.addEventListener('beforeinstallprompt', (e) => {
+    // Prevent the mini-infobar from appearing on mobile
+    e.preventDefault();
+    // Stash the event so it can be triggered later
+    deferredPrompt = e;
+    // Update UI to notify the user they can install the PWA
+    installButton.style.display = 'block';
+    headerInstallButton.style.display = 'flex';
+    
+    // Show toast notification
+    showToast('Smart Aid can be installed as an app!', 'success');
+    
+    // Log for debugging
+    console.log('PWA installation available');
+  });
+  
+  function installPWA() {
+    if (!deferredPrompt) {
+      speak("PWA installation not available in this browser");
+      showToast("Installation not available in this browser", "error");
+      console.warn("Installation prompt not available");
+      return;
+    }
+    
+    // Show the install prompt
+    deferredPrompt.prompt();
+    
+    // Wait for the user to respond to the prompt
+    deferredPrompt.userChoice.then((choiceResult) => {
+      if (choiceResult.outcome === 'accepted') {
+        console.log('User accepted the install prompt');
+        showToast("Smart Aid is installing...", "success");
+        speak("Smart Aid is installing...");
+      } else {
+        console.log('User dismissed the install prompt');
+        showToast("Installation cancelled", "error");
+        speak("Installation cancelled");
+      }
+      // Clear the deferredPrompt so it can be garbage collected
+      deferredPrompt = null;
+      installButton.style.display = 'none';
+      headerInstallButton.style.display = 'none';
+    });
+  }
+  
+  // Detect when the app is successfully installed
+  window.addEventListener('appinstalled', () => {
+    console.log('PWA was installed');
+    installButton.style.display = 'none';
+    headerInstallButton.style.display = 'none';
+    speak("Smart Aid installed successfully! You can now use it like a native app.");
+    showToast("Smart Aid installed successfully!", "success");
+  });
+  
+  // Check if app is already installed (standalone mode)
+  if (window.matchMedia('(display-mode: standalone)').matches) {
+    installButton.style.display = 'none';
+    headerInstallButton.style.display = 'none';
+    console.log('Running in standalone mode (already installed)');
+  }
+  
+  // Offline Detection
+  window.addEventListener('online', () => {
+    document.getElementById('offlineNotification').style.display = 'none';
+    console.log('Online again');
+    speak("Back online. All features available.");
+    showToast("Back online. All features available.", "success");
+  });
+  
+  window.addEventListener('offline', () => {
+    document.getElementById('offlineNotification').style.display = 'block';
+    console.log('Offline');
+    speak("You are offline. Some features may not work.");
+  });
+  
+  // Service Worker Registration
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then(registration => {
+          console.log('ServiceWorker registration successful with scope: ', registration.scope);
+          speak("Service worker activated for offline use");
+          showToast("Offline features enabled", "success");
+          
+          // Check for updates
+          registration.addEventListener('updatefound', () => {
+            const newWorker = registration.installing;
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed') {
+                if (navigator.serviceWorker.controller) {
+                  // New update available
+                  speak("New version available. Refresh to update.");
+                  showToast("New version available. Refresh to update.", "info");
+                  
+                  // Create a refresh button
+                  const refreshButton = document.createElement('button');
+                  refreshButton.textContent = 'Refresh Now';
+                  refreshButton.style.marginLeft = '10px';
+                  refreshButton.onclick = () => window.location.reload();
+                  
+                  // Add to toast
+                  const toast = document.querySelector('.toast:last-child');
+                  if (toast) {
+                    toast.appendChild(refreshButton);
+                  }
+                }
+              }
+            });
+          });
+        })
+        .catch(error => {
+          console.log('ServiceWorker registration failed: ', error);
+          speak("Offline features not available");
+          showToast("Offline features not available", "error");
+        });
+    });
+  }
+  
+  // Initialize offline status on page load
+  if (!navigator.onLine) {
+    document.getElementById('offlineNotification').style.display = 'block';
+  }
+  
+  // ====================== dashboard.js ======================
+  // Fetch motion status every 5 seconds
+  function updateMotionStatus() {
+    // Simulated API call
+    setTimeout(() => {
+      document.getElementById("motionStatus").textContent = 
+        Math.random() > 0.2 ? "Detected" : "No motion";
+    }, 500);
+  }
+
+  // Fetch analytics data every 5 seconds
+  function updateAnalytics() {
+    // Simulated analytics update
+    setTimeout(() => {
+      document.getElementById("loading-spinner").style.display = 'none';
+    }, 1500);
+  }
+
+  // Call these functions on load to initialize
+  function initializeDashboard() {
+    updateMotionStatus();  // Initial fetch for motion status
+    updateAnalytics();  // Initial fetch for analytics data
+
+    setInterval(updateMotionStatus, 5000);  // Update motion status every 5 seconds
+    setInterval(updateAnalytics, 5000);  // Update analytics every 5 seconds
+  }
+
+  // Call initializeDashboard when the page is loaded
+  window.addEventListener("DOMContentLoaded", initializeDashboard);
+  
+  // ====================== detection.js ======================
+  const detectionModes = {
+    home: [
+      "person", "dog", "cat", "tv", "remote", "refrigerator", "microwave",
+      "chair", "couch", "bed", "tree", "backpack", "cell phone", "umbrella"
+    ],
+    public: [
+      "person", "car", "bus", "bicycle", "motorcycle", "traffic light", "stop sign",
+      "bench", "truck", "tree", "backpack", "cell phone", "umbrella"
+    ]
+  };
+
+  let lastDetectionMessage = "Person detected 2 meters ahead";
+  let quietMode = false;
+  
+  function speakLastDetection() {
+    if (!quietMode && lastDetectionMessage) speak(lastDetectionMessage);
+    else if (!quietMode) speak("No detection has been received yet.");
+  }
+
+  function clearDetectionLog() {
+    document.getElementById("detectionList").innerHTML = "<li id='placeholder'>No detections yet.</li>";
+    lastDetectionMessage = "";
+    if (!quietMode) speak("Detection log cleared.");
+    showToast("Detection log cleared", "success");
+  }
+
+  function updateMode() {
+    const mode = document.getElementById("modeSelect").value;
+    document.getElementById("customLabelBox").style.display = mode === "custom" ? "block" : "none";
+    if (!quietMode) speak(mode === "home" ? "Home mode activated" : mode === "public" ? "Public mode activated" : "Custom mode activated");
+  }
+
+  function updateConfig() {
+    const mode = document.getElementById("modeSelect").value;
+    let selectedLabels = [];
+    if (mode === "custom") {
+      document.querySelectorAll("#customLabels input[type=checkbox]:checked").forEach(cb => {
+        selectedLabels.push(cb.value);
+      });
+    } else {
+      selectedLabels = detectionModes[mode];
+    }
+    
+    // Update UI
+    document.getElementById("modeLabel").textContent = 
+      mode === "home" ? "Home" : mode === "public" ? "Public" : "Custom";
+    document.getElementById("activeLabels").textContent = selectedLabels.join(", ");
+    
+    if (!quietMode) speak(`Detection config updated for ${mode} mode.`);
+    showToast(`Detection config updated for ${mode} mode`, "success");
+  }
+
+  function generateCustomLabelUI() {
+    const container = document.getElementById("customLabels");
+    container.innerHTML = "";
+
+    const searchInput = document.createElement("input");
+    searchInput.type = "text";
+    searchInput.placeholder = "Search labels...";
+    searchInput.style.width = "100%";
+    searchInput.style.padding = "8px";
+    searchInput.style.marginBottom = "10px";
+    searchInput.style.borderRadius = "4px";
+    searchInput.style.border = "1px solid #333";
+    searchInput.style.backgroundColor = "#1a1a1a";
+    searchInput.style.color = "white";
+    container.appendChild(searchInput);
+
+    const controls = document.createElement("div");
+    controls.style.marginBottom = "10px";
+    controls.innerHTML = `
+      <button style="margin-right: 5px;" onclick="selectAllLabels()">Select All</button>
+      <button onclick="deselectAllLabels()">Deselect All</button>
+    `;
+    container.appendChild(controls);
+
+    const groups = {
+      Indoor: ["tv", "remote", "chair", "couch", "bed", "sink", "microwave", "refrigerator", "laptop", "clock"],
+      Outdoor: ["car", "bus", "truck", "traffic light", "bench", "bicycle", "stop sign"],
+      Animals: ["dog", "cat", "cow", "horse", "zebra", "elephant", "bird", "sheep"]
+    };
+
+    for (const [group, labels] of Object.entries(groups)) {
+      const groupTitle = document.createElement("strong");
+      groupTitle.textContent = group;
+      groupTitle.style.display = "block";
+      groupTitle.style.marginTop = "10px";
+      container.appendChild(groupTitle);
+
+      labels.forEach(label => {
+        const div = document.createElement("div");
+        div.style.margin = "5px 0";
+        
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.value = label;
+        cb.id = `label_${label}`;
+        cb.checked = true;
+        cb.style.marginRight = "8px";
+
+        const lbl = document.createElement("label");
+        lbl.htmlFor = cb.id;
+        lbl.textContent = label;
+
+        div.appendChild(cb);
+        div.appendChild(lbl);
+        container.appendChild(div);
+      });
+    }
+  }
+
+  function selectAllLabels() {
+    document.querySelectorAll("#customLabels input[type=checkbox]").forEach(cb => cb.checked = true);
+  }
+
+  function deselectAllLabels() {
+    document.querySelectorAll("#customLabels input[type=checkbox]").forEach(cb => cb.checked = false);
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    updateMode();
+    generateCustomLabelUI();
+  });
+  
+  // ====================== navigation.js ======================
+  function initMap() {
+    // Simulated map initialization
+    setTimeout(() => {
+      const mapEl = document.getElementById("map");
+      mapEl.innerHTML = "";
+      mapEl.style.background = "none";
+      mapEl.innerHTML = '<div style="width:100%;height:100%;background:#1a1a1a;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#888;"><p>Map loaded successfully</p></div>';
+    }, 1500);
+  }
+
+  function startVoiceSearch() {
+    speak("Listening for destination...");
+    setTimeout(() => {
+      const destinations = ["library", "coffee shop", "post office", "park"];
+      const destination = destinations[Math.floor(Math.random() * destinations.length)];
+      document.getElementById("destinationInput").value = destination;
+      speak(`Getting directions to ${destination}`);
+      showToast(`Getting directions to ${destination}`, "success");
+    }, 1000);
+  }
+
+  function speakDetailedLocation() {
+    const locations = [
+      "You are at 123 Main Street",
+      "You are near Central Park",
+      "You are at the downtown shopping district"
+    ];
+    const location = locations[Math.floor(Math.random() * locations.length)];
+    speak(location);
+    showToast(location, "info");
+  }
+  
+  // ====================== sensor.js ======================
+  function applyThresholds() {
+    // Simulate applying thresholds
+    setTimeout(() => {
+      speak("Ultrasonic thresholds updated successfully");
+      showToast("Thresholds updated successfully", "success");
+    }, 500);
+  }
+
+  function toggleFullScreen(el) {
+    if (!document.fullscreenElement) {
+      el.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+      });
+      speak("Entering full screen mode");
+    } else {
+      document.exitFullscreen();
+      speak("Exiting full screen mode");
+    }
+  }
+  
+  // ====================== speech.js ======================
+  const Speech = {
+    synth: window.speechSynthesis,
+    queue: [],
+    speaking: false,
+    muted: false,
+    pitch: 1,
+    rate: 1,
+    voicePref: 'female',
+    ready: false,
+    quiet: false,
+
+    init() {
+      this.ready = true;
+      this.log("Speech system ready");
+    },
+
+    speak(msg, options = {}) {
+      if (this.muted || this.quiet || !msg || !this.ready) return;
+
+      // Simulate speech
+      console.log("[Speech] Speaking:", msg);
+    },
+
+    mute(toggle) {
+      this.muted = toggle;
+      if (toggle) {
+        console.log("[Speech] Muted");
+      } else {
+        console.log("[Speech] Unmuted");
+      }
+    },
+
+    log(msg) {
+      console.log('[Speech]', msg);
+    }
+  };
+
+  // 🔊 Global speak function
+  function speak(msg, options) {
+    Speech.speak(msg, options);
+  }
+
+  // 🔇 Mute checkbox
+  function toggleMute() {
+    const toggle = document.getElementById('muteToggle');
+    Speech.mute(toggle.checked);
+    showToast(toggle.checked ? "Voice output muted" : "Voice output unmuted", "info");
+  }
+  
+  // ====================== system.js ======================
+  function toggleIndoorMode() {
+    const enabled = document.getElementById("indoorToggle").checked;
+    speak(enabled ? "Indoor mode enabled" : "Indoor mode disabled");
+    showToast(enabled ? "Indoor mode enabled" : "Indoor mode disabled", "success");
+  }
+
+  function toggleQuietMode() {
+    const enabled = document.getElementById("quietToggle").checked;
+    Speech.quiet = enabled;
+    document.getElementById("quietStatus").textContent = enabled ? "ON" : "OFF";
+    speak(enabled ? "Quiet mode enabled" : "Quiet mode disabled");
+    showToast(enabled ? "Quiet mode enabled" : "Quiet mode disabled", "success");
+  }
+
+  function toggleWakeWord() {
+    const enabled = document.getElementById("wakeToggle").checked;
+    speak(enabled ? "Wake word enabled" : "Wake word disabled");
+    showToast(enabled ? "Wake word enabled" : "Wake word disabled", "success");
+  }
+
+  function checkStatus() {
+    const status = {
+      battery: Math.floor(Math.random() * 50) + 50,
+      health: "Good",
+      mode: document.getElementById("modeSelect").value
+    };
+    
+    document.getElementById("currentMode").textContent = status.mode;
+    
+    speak(`Battery at ${status.battery} percent. Health status is ${status.health}.`);
+    showToast(`Battery: ${status.battery}%, Health: ${status.health}`, "info");
+  }
+
+  function toggleLog() {
+    const log = document.getElementById("log");
+    log.style.display = log.style.display === "none" ? "block" : "none";
+    speak(log.style.display === "block" ? "Showing logs" : "Hiding logs");
+  }
+
+  function deleteLogs() {
+    speak("Which logs would you like to delete?");
+    setTimeout(() => {
+      speak("All logs deleted successfully");
+      showToast("All logs deleted successfully", "success");
+    }, 1000);
+  }
+
+  const sectionNames = {
+    dashboard: "Dashboard",
+    nav: "Navigation Mode",
+    detect: "Detection Panel",
+    sensor: "Sensor Settings",
+    system: "System Tools",
+    voice: "Voice Commands"
+  };
+
+  function switchSection(id, el = null) {
+    document.querySelectorAll(".section").forEach(sec => sec.classList.remove("active"));
+    document.querySelectorAll(".nav-btn").forEach(btn => btn.classList.remove("active"));
+    
+    const target = document.getElementById(id);
+    if (target) target.classList.add("active");
+    
+    if (el) el.classList.add("active");
+
+    const label = sectionNames[id] || id;
+    speak(`${label} activated`);
+  }
+
+  function startListening() {
+    speak("Listening. Please say a command.");
+    showToast("Listening for command...", "info");
+    
+    // Simulate command after delay
+    setTimeout(() => {
+      const commands = [
+        "navigate to library",
+        "check battery status",
+        "enable quiet mode",
+        "open dashboard",
+        "where am I"
+      ];
+      const command = commands[Math.floor(Math.random() * commands.length)];
+      handleVoiceCommand(command);
+    }, 2000);
+  }
+
+  function shutdownPi() {
+    console.log("Shutdown function triggered...");
+    speak("Shutting down the system");
+    showToast("System shutting down...", "info");
+    
+    setTimeout(() => {
+      showToast("System has been shut down", "success");
+    }, 1500);
+  }
+
+  const voiceCommands = {
+    "dashboard": () => switchSection("dashboard"),
+    "open dashboard": () => switchSection("dashboard"),
+    "navigation": () => switchSection("nav"),
+    "open navigation": () => switchSection("nav"),
+    "detection": () => switchSection("detect"),
+    "open detection": () => switchSection("detect"),
+    "sensor": () => switchSection("sensor"),
+    "open sensors": () => switchSection("sensor"),
+    "system": () => switchSection("system"),
+    "open system": () => switchSection("system"),
+    "voice": () => switchSection("voice"),
+    "voice commands": () => switchSection("voice"),
+    "check battery": () => checkStatus(),
+    "enable indoor mode": () => { document.getElementById("indoorToggle").checked = true; toggleIndoorMode(); },
+    "disable indoor mode": () => { document.getElementById("indoorToggle").checked = false; toggleIndoorMode(); },
+    "enable quiet mode": () => { document.getElementById("quietToggle").checked = true; toggleQuietMode(); },
+    "disable quiet mode": () => { document.getElementById("quietToggle").checked = false; toggleQuietMode(); },
+    "enable wake word": () => { document.getElementById("wakeToggle").checked = true; toggleWakeWord(); },
+    "disable wake word": () => { document.getElementById("wakeToggle").checked = false; toggleWakeWord(); },
+    "shut down": () => { shutdownPi(); },
+    "power off": () => { shutdownPi(); },
+    "delete logs": () => deleteLogs(),
+    "repeat detection": () => speakLastDetection(),
+    "repeat message": () => speak(lastDetectionMessage),
+    "where am i": () => speakDetailedLocation(),
+    "get location": () => speakDetailedLocation(),
+    "start voice navigation": () => startVoiceSearch(),
+    "navigate to": () => startVoiceSearch(),
+    "install app": () => installPWA(),
+    "install the app": () => installPWA()
+  };
+
+  function handleVoiceCommand(transcript) {
+    console.log("Processing command:", transcript);
+    for (const phrase in voiceCommands) {
+      if (transcript.includes(phrase)) {
+        speak(`Executing: ${phrase}`);
+        showToast(`Executing: ${phrase}`, "info");
+        voiceCommands[phrase]();
+        return;
+      }
+    }
+    speak("Sorry, I didn't understand that command.");
+    showToast("Command not recognized", "error");
+  }
+
+  // Initialize the app
+  window.addEventListener("DOMContentLoaded", () => {
+    Speech.init();
+    switchSection("dashboard");
+    
+    // Set initial states
+    document.getElementById("muteToggle").checked = false;
+    document.getElementById("indoorToggle").checked = false;
+    document.getElementById("quietToggle").checked = false;
+    document.getElementById("wakeToggle").checked = true;
+    document.getElementById("toggleDetection").checked = true;
+    document.getElementById("toggleVoice").checked = true;
+    
+    // Show welcome message
+    setTimeout(() => {
+      speak("Smart Aid control panel initialized. All systems ready.");
+      showToast("Smart Aid initialized. All systems ready.", "success");
+    }, 1000);
+  });
+  </script>
+</body>
+</html>
